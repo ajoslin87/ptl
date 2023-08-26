@@ -7,53 +7,54 @@ import yfinance as yf
 # import talib
 from technical.cdlstick import Mqttcalls
 import pandas as pd
+import datetime
 
 #Init app
 app = Flask(__name__)
-basedir = os.path.abspath(os.path.dirname(__file__))
+# basedir = os.path.abspath(os.path.dirname(__file__))
 
 #Database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'db.sqlite')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'db.sqlite')
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-#Init db
-db = SQLAlchemy(app)
-#Init ma
-ma = Marshmallow(app)
+# #Init db
+# db = SQLAlchemy(app)
+# #Init ma
+# ma = Marshmallow(app)
 
 #Product Class/Model
-class Product(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100),unique=True)
-    description = db.Column(db.String(200))
-    price = db.Column(db.Float)
-    qty = db.Column(db.Integer)
+# class Product(db.Model):
+#     id = db.Column(db.Integer, primary_key=True)
+#     name = db.Column(db.String(100),unique=True)
+#     description = db.Column(db.String(200))
+#     price = db.Column(db.Float)
+#     qty = db.Column(db.Integer)
 
-    def __init__(self,name,description,price,qty):
-        self.name = name
-        self.description = description
-        self.price = price
-        self.qty = qty
+#     def __init__(self,name,description,price,qty):
+#         self.name = name
+#         self.description = description
+#         self.price = price
+#         self.qty = qty
 
 # Product Schema
-class ProductSchema(ma.Schema):
-    class Meta:
-        fields = ('id','name','description','price','qty')
+# class ProductSchema(ma.Schema):
+#     class Meta:
+#         fields = ('id','name','description','price','qty')
 
-# Init schema
-product_schema = ProductSchema()
-products_schema = ProductSchema(many=True)
+# # Init schema
+# product_schema = ProductSchema()
+# products_schema = ProductSchema(many=True)
 
 # Create Product
-@app.route('/product/<ticker>',methods=['Post'])
+@app.route('/product/<ticker>',methods=['Get'])
 def get_data(ticker):
-    result = Mqttcalls.get_data(ticker)
-    return product_schema.jsonify(new_product)
-
+    result = yf.download(ticker, start='2020-01-01', end='2021-08-01')
+    return result.to_json()
 # Get All Products
 @app.route('/historical/<id>/<start>/<end>/', methods=['GET'])
 def run_function(id, start, end):
-    result = yf.download(id, start, end)
+
+    result = yf.download(id, start, end, interval="15m")
     return result.to_json()
 
 # FTX Market Buy
@@ -64,7 +65,7 @@ def send_ftx_buy(id):
 
 #FTX Historical
 
-@app.route('/ftx/<id1>/<id2>/', methods=['GET']) 
+@app.route('/ftx/<id1>/<id2>/', methods=['GET'])
 def get_ftx_historical(id1, id2):
     idCombined = id1 + "/" + id2
     result = ftx_api_calls.ftx_historical(idCombined)
@@ -82,9 +83,9 @@ def get_ftx_historical(id1, id2):
 def get_candle(id1, id2):
     idCombined = id1 + "/" + id2
     result = ftx_api_calls.ftx_historical(idCombined)
-    df = pd.DataFrame(result, columns=['Date', 'Open', 'High', 'Low', 'Close','Volume'])
+    df = pd.DataFrame(result, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
     morningstar = Mqttcalls.get_data(df)
-    df['Morningstar'] = morningstar
+    df['morningstar'] = morningstar
     print(df)
     # print(type(morningstar))
     # print(type(result))
